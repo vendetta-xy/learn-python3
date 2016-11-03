@@ -25,4 +25,4 @@ def cPrint(msg,color =COLOR.BLUE):
     ctypes.windll.Kernel32.SetConsoleTextAttribute(h, color)  
     print (msg)  
     ctypes.windll.Kernel32.SetConsoleTextAttribute(h, COLOR.SILVER)
-cPrint('helloworld',1)
+
