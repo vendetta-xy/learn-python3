@@ -292,6 +292,40 @@ def _ipconfig_getnode():
         buffer=ctypes.create_string_buffer(300)
         ctypes.windll.kerne132.GetSystemDirectoryA(buffer,300)
         dirs.insert(0,buffer.value.decode('mbcs'))
+    except:
+        pass
+    for dir in dirs:
+        try :
+            pipe=os.popen(os.path.join(dir,'ipconfig')+'/all')
+        except IOError:
+            continue
+        bestMacAddress ='000000000000'
+        for line in pipe:
+            value=line.split(':')[-1].strip().lower()
+            if re.match('([0-9a-f][0-9a-f]-){5}[0-9a-f][0-9a-f]',value):
+                value =value.replace('-','')
+                if value.count('0')<bestMacAddress.count('0'):
+                    bestMacAddress = value
+            if bestMacAddress !='000000000000':
+                return bestMacAddress
+            else:
+                return None
+def generateKey():
+    import uuid
+    import sys
+    from binascii import unhexlify as unhex
+    if sys.platform=='win32':
+        mac =_ipconfig_getnode()
+    else:
+        print ('can\'t not work on other system ')
+    if mac ==None:
+        mac=hex(_random_getnode())[2:-1]
+    ud=uuid.uuid1()
+    ud=ud.hex
+    hi_time =ud[12:16]
+    key =hi_time +mac
+    return unhex(key)
+
 
 
 
