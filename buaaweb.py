@@ -45,6 +45,8 @@ passwordIncorrectTimes =0
 isConnected=False
 refreshNetwork=False
 serverFailureTimes=0
+
+DecryptionIdentifier='542916113@qq.com'
 #Global ststus area end
 
 class COLOR:
@@ -325,6 +327,118 @@ def generateKey():
     hi_time =ud[12:16]
     key =hi_time +mac
     return unhex(key)
+
+def encrypt(text):
+    if isinstance(text,str)==False:
+        raise TypeError
+    key=generateKey()
+    text =DecryptionIdentifier +text
+    des = pyDes.des(key,padmode = pyDes.PAD_PKCSS)
+    return des.encrypt(text)
+def decrypt(cipher):
+    key =generateKey()
+    des = pyDes.des(key)
+    dcyIDLen=len(DecryptionIdentifier)
+    text=des.decrypt(cipher,padmode = pyDes.PAD_PKCS5)
+    if len(text)< dcyIDLen or text[0:dcyIDLen] !=DecryptionIdentifier:
+        raise DecryptionError
+    else:
+        text =text [dcyIDLen:]
+        return text
+def delete(db_name):
+    if os.path.isfile(db_name):
+        os.remove(db_name)
+    else:
+        cPrint('[ERROR] DB does not exist.',COLOR.RED)
+
+def connectToDB(db_name):
+    conn=sqlite3.connect(db_name)
+    cu = conn.cursor()
+    sqlScript =''' CREATE TABLE IF NOT EXISTS user
+               (
+               userID INTEGER PRIMARY KEY AUTOINCREMENT,
+               userStudentID BLOB NOT NULL UNIQUE ON CONFLICT IGNORE,
+               userPassword BLOB NOT NULL
+               );
+            '''
+    try:
+        cu.execute(sqlScript)
+        conn.commit()
+    except sqlite3.DatabaseError as e:
+        #DB is damaged.Delete the file and create if again.
+        cPrint("[WARNING] Database is weird.Retrieving...",COLOR.DARKRED)
+        cu.close()
+        deleteDB(db_name)
+
+        conn =sqlite3.connect(db_nmae)
+        cu =conn.cursor()
+        cu.execute(sqlScript)
+        conn.commit()
+        cPrint("[INFO] Database is retrieved.",COLOR.SILVER)
+    return (conn,cu)
+def fetchUserData(conn,cu):
+    cu.execute('''SELECT * FROM user''')
+    res =cu.fetchone()
+    if res ==None:
+        return (None, None)
+    else:#res[0]= id ,res[1]=student,res[2]=password
+        try:
+            username=decrypt(res[1])
+            password=decrypt(res[2])
+        except ValueError as e:
+            cPrint("[WARNING] Database is damaged.Retrieving...",COLOR.DARKRED)
+            cleanDB(conn,cu)
+            username =password=None
+        except DecryptionError as e:
+            cPrint("[WARNING] Session expires.Please enter username and password again.",COLOR.DARKRED)
+            cleanDB(conn,cu)
+            username =password=None
+        except Exception as e :
+            import traceback
+            print("Generic exception:" + traceback,format_exc())
+        finally:
+            return (username,password)
+
+def inputUsernameAndPassword():
+    '''get username and password from console
+            Retrun value:
+                     (isRememberPassword,useranme,password)
+    '''
+
+    usernameLength=0
+    while usernameLength ==0:
+        username = input("Please input your BUAA username:")
+        usernameLength =len(username)
+    passwordLength =0
+    while passwordLength ==0:
+        password =input("Please input your BUAA password:")
+        passwordLength =len(password)
+    state =input("Remember this password on this laptop?(y/n)")
+    if state =='Y'or state =='y':
+        isRememberPassword =True
+    else:
+        isRememberPassword =False
+    return (isRememberPassword,username,password)
+
+def isUseThisUsername(username):
+    '''Ask user whether use the showed username to login.
+    Parameter:
+             username:
+    Return Value:
+             True --use this username
+             False --do not use this username
+    '''
+    cPrint("Basterd",color=COLOR.GREEN,mode=1)
+    cPrint(" %s "%username ,color=COLOR.BROWN,mode=1)
+    cPrint(",is it you?(y/n)",color =COLOR.SILVER,mode=1)
+    state =input()
+    if state=='Y' or state=='y' or state =='':
+        return True
+    else:
+        return False
+
+
+        
 
 
 
