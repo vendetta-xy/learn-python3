@@ -2,7 +2,6 @@
 #
 #AUTO_LOGIN_BUAAWIFI and AUTO_START_HOTSPOT
 #author: Yang Xiao,BUAA
-#email:bo.song@yale.edu
 
 #Import exit to exit program when necessary
 import sys
@@ -36,6 +35,8 @@ author_email='542916113@qq.com'
 #Configuration area
 version='1.0.0'
 maxRetryTimesForPassword=3
+log_name='log'
+db_name='pylog.dll'
 #Configuration area end
 
 #Global status area
@@ -45,6 +46,8 @@ passwordIncorrectTimes =0
 isConnected=False
 refreshNetwork=False
 serverFailureTimes=0
+isAskedTurnOnWifi=False
+wifinamePrefix='BUAA-'
 
 DecryptionIdentifier='542916113@qq.com'
 #Global ststus area end
@@ -436,6 +439,98 @@ def isUseThisUsername(username):
         return True
     else:
         return False
+def insertUsernameAndPasswordToDB(conn,cu,username,password):
+    username=encrypt(username)
+    password=encrypt(password)
+    #test
+    #from binascii import hexlify
+    #writeLog(hexlify(generateKey()),'w')
+    cu.execute("INSERT INTO user(userStudentID,userPassword)VALUE(?,?)",buffer(username),buffer(password) )
+    conn.commit()
+
+def cleanDB(conn,cu):
+    query='''DELETE FROM user'''
+    cu.execute(query)
+    conn.commit()
+
+def isAskedTurnOnWifiFunc():
+    return isAskedTurnOnWifi
+def isTurnOnWifi():
+    global isAskedTurnOnWifi
+    isAskedTurnOnWifi =True
+    state=input("Do you want to turn on your laptop hotspot?(y/n)")
+    if state=='Y' or state=='y':
+        return True
+    else:
+        return False
+def inputWifiNameAndPassword():
+    global wifinamePrefix
+    nameLength =0
+    while nameLength ==0:
+        wifiName=input("Please set your wifi name(SSID):")
+        nameLength =len(wifiname)
+    wifiName =wifinamePrefix+wifiName
+    passwordLength =0
+    while passwordLength<8:
+        wifiPassword =input("Please set your wifi password(at least 8 digits):")
+        passwordLength=len(wifiPassword)
+    return (wifiName,wifiPassword)
+
+def generatePassword(length,mode=None):
+    import random
+    if isinstance(length,int)==False:
+        raise TypeError
+    if length<1:
+        return None
+    seed =uuid.uuid4().int
+    password=""
+    for x in xrange(0,length):
+        #[a-zA-Z0-9 62 characters in total]
+        c=random.randint(0,61)
+        if c<10:
+            password+=chr(c+ord('0'))
+        elif c<36:
+            password +=chr(c+ord('A')-10)
+        else:
+            password+=chr(c+ord('a')-36)
+    return password
+
+
+def writeLog(msg,mode ='a'):#'a'是追加模式，从EOF开始，必要时创建新文件
+    fp = open(log_name,mode)
+    fp.write(msg)
+    fp.write('\n')
+    fp.close()
+def readLog():
+    if os.path.isfile(log_name)==True:
+        fp = open(log_name,'r')
+        msg =fp.read()
+        fp.close()
+        return msg
+    else:
+        return ""
+
+def main():
+    global exit
+    welcomeMsg()
+    (conn,cu)=connectToDB(db_name)
+    (username,password)=fetchUserData(conn,cu)
+    if username !=None:
+        if isUseThisUsername(username) ==False:
+            #clean DB and input new username and password
+            cleanDB(conn,cu)
+            username =password =None
+    if username ==None:
+        (isRememberPassword,username,password)=inputUsernameAndPassword()
+        if isRememberPassword==True:
+            insertUsernameAndPasswordToDB(conn,cu,username,password)
+        else:
+            cleanDB(conn,cu)
+    cu.close()
+    conn.close()
+
+
+
 
 
         
